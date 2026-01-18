@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Sudoku Master</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --board-bg: #ffffff;
+            --grid-line: #dee2e6;
+            --grid-line-thick: #343a40;
+            --primary: #0d6efd;
+            --primary-light: #e7f1ff;
+            --highlight-same: #cff4fc;
+            --highlight-related: #f1f3f5;
+            --error-bg: #f8d7da;
+            --error-text: #842029;
+            --success-bg: #d1e7dd;
+            --cage-border: #adb5bd;
+            --cage-text: #6c757d;
+            --btn-radius: 8px;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --board-bg: #1e1e1e;
+            --grid-line: #444;
+            --grid-line-thick: #888;
+            --primary: #4dabf7;
+            --primary-light: #182836;
+            --highlight-same: #1a3c4d;
+            --highlight-related: #2c2c2c;
+            --error-bg: #4c262a;
+            --error-text: #ea868f;
+            --success-bg: #1b3829;
+            --cage-border: #555;
+            --cage-text: #aaaaaa;
+        }
+
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* --- Header & Top Controls --- */
+        header {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--board-bg);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .header-left, .header-right { display: flex; align-items: center; gap: 10px; }
+        h1 { margin: 0; font-size: 1.2rem; font-weight: 700; }
+        
+        .timer { font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+
+        .settings-bar {
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        select {
+            padding: 8px;
+            border-radius: var(--btn-radius);
+            border: 1px solid var(--grid-line);
+            background: var(--board-bg);
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        /* --- Game Board --- */
+        #game-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            overflow: auto;
+        }
+
+        #sudoku-board {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 1;
+            background-color: var(--grid-line-thick);
+            border: 2px solid var(--grid-line-thick);
+            gap: 1px;
+            user-select: none;
+        }
+
+        .cell {
+            background-color: var(--board-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.1s;
+        }
+
+        /* Mobile font adjustment */
+        @media (max-width: 400px) { .cell { font-size: 1.2rem; } }
+
+        /* Borders for 3x3 blocks */
+        .cell:nth-child(3n) { border-right: 2px solid var(--grid-line-thick); }
+        .cell:nth-child(9n) { border-right: none; } /* handled by grid gap/container */
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid var(--grid-line-thick); }
+
+        /* States */
+        .cell.fixed { font-weight: bold; color: var(--text-color); }
+        .cell.user-input { color: var(--primary); }
+        .cell.selected { background-color: var(--primary); color: white !important; }
+        .cell.highlight-related { background-color: var(--highlight-related); }
+        .cell.highlight-same { background-color: var(--highlight-same); font-weight: bold; }
+        .cell.error { background-color: var(--error-bg) !important; color: var(--error-text) !important; animation: shake 0.3s; }
+        
+        /* Killer Sudoku Styles */
+        .cage-sum {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 0.6rem;
+            line-height: 1;
+            color: var(--cage-text);
+            font-weight: bold;
+            pointer-events: none;
+        }
+        .cage-border-top { border-top: 1px dashed var(--cage-border); }
+        .cage-border-bottom { border-bottom: 1px dashed var(--cage-border); }
+        .cage-border-left { border-left: 1px dashed var(--cage-border); }
+        .cage-border-right { border-right: 1px dashed var(--cage-border); }
+
+        /* --- Controls --- */
+        .controls-area {
+            padding: 10px;
+            background-color: var(--board-bg);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 5px;
+        }
+
+        .numpad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 1-5 */
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+        .numpad.row2 {
+            grid-template-columns: repeat(4, 1fr); /* 6-9 */
+            width: 80%;
+            margin: 0 auto;
+        }
+
+        button {
+            border: none;
+            background-color: #e9ecef;
+            color: var(--text-color);
+            padding: 12px 5px;
+            border-radius: var(--btn-radius);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+        [data-theme="dark"] button { background-color: #333; }
+        
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-num { font-size: 1.4rem; font-weight: bold; }
+
+        /* --- Modals --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: var(--board-bg);
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .highscore-list { text-align: left; list-style: none; padding: 0; margin-top: 10px; }
+        .highscore-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--grid-line); }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h1>Sudoku</h1>
+        <div id="game-timer" class="timer">00:00</div>
+    </div>
+    <div class="header-right">
+        <button id="btn-sound" title="Sound An/Aus">🔊</button>
+        <button id="btn-theme" title="Dunkler Modus">🌙</button>
+        <button id="btn-highscore" title="Bestenliste">🏆</button>
+    </div>
+</header>
+
+<div class="settings-bar">
+    <select id="mode-select">
+        <option value="classic">Classic Sudoku</option>
+        <option value="diagonal">Diagonal Sudoku</option>
+        <option value="killer">Killer Sudoku</option>
+    </select>
+    <select id="diff-select">
+        <option value="easy">Einfach</option>
+        <option value="medium" selected>Mittel</option>
+        <option value="hard">Schwer</option>
+    </select>
+    <button id="btn-new-game" class="btn-primary">Neues Spiel</button>
+</div>
+
+<div id="game-container">
+    <div id="sudoku-board">
+        </div>
+</div>
+
+<div class="controls-area">
+    <div class="action-buttons">
+        <button id="btn-undo" title="Rückgängig">↩️</button>
+        <button id="btn-redo" title="Wiederholen">↪️</button>
+        <button id="btn-delete" title="Löschen">⌫</button>
+        <button id="btn-hint" title="Hinweis">💡</button>
+        <button id="btn-solve" style="color: #d63384;" title="Aufgeben">🏳️</button>
+    </div>
+    <div class="numpad">
+        <button class="btn-num" data-val="1">1</button>
+        <button class="btn-num" data-val="2">2</button>
+        <button class="btn-num" data-val="3">3</button>
+        <button class="btn-num" data-val="4">4</button>
+        <button class="btn-num" data-val="5">5</button>
+    </div>
+    <div class="numpad row2">
+        <button class="btn-num" data-val="6">6</button>
+        <button class="btn-num" data-val="7">7</button>
+        <button class="btn-num" data-val="8">8</button>
+        <button class="btn-num" data-val="9">9</button>
+    </div>
+</div>
+
+<div id="modal-highscore" class="modal">
+    <div class="modal-content">
+        <h2>Top 5 Highscores</h2>
+        <ul id="highscore-list" class="highscore-list"></ul>
+        <button onclick="document.getElementById('modal-highscore').style.display='none'" style="margin-top:15px; width:100%">Schließen</button>
+    </div>
+</div>
+
+<script>
+/**
+ * --- MODEL & LOGIC ---
+ */
+class SudokuModel {
+    constructor() {
+        this.size = 9;
+        this.reset();
+    }
+
+    reset() {
+        this.board = Array(81).fill(0);     // Current state
+        this.solution = Array(81).fill(0);  // The answer
+        this.fixed = Array(81).fill(false); // Initial clues
+        this.cages = [];                    // For Killer Sudoku
+        this.history = [];                  // Undo stack
+        this.redoStack = [];                // Redo stack
+        this.timer = 0;
+        this.isPlaying = false;
+        this.errors = 0;
+        this.hintsUsed = 0;
+    }
+
+    // --- Generator Logic ---
+    generate(mode, difficulty) {
+        this.reset();
+        this.mode = mode;
+        this.difficulty = difficulty;
+
+        // 1. Fill diagonal 3x3 boxes (independent, safe to random fill)
+        this.fillDiagonalBoxes();
+
+        // 2. Solve the rest to create a full valid board
+        this.solve(this.solution, 0, true); // True = randomize order for uniqueness
+        this.board = [...this.solution];
+
+        // 3. For Killer: Generate cages BEFORE removing numbers
+        if (mode === 'killer') {
+            this.generateKillerCages();
+        }
+
+        // 4. Remove numbers based on difficulty
+        let attempts = difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 58;
+        if (mode === 'killer') attempts = 81; // Killer starts empty usually
+
+        while (attempts > 0) {
+            let idx = Math.floor(Math.random() * 81);
+            if (this.board[idx] !== 0) {
+                this.board[idx] = 0;
+                attempts--;
+            }
+        }
+
+        // Set fixed positions (non-zero are fixed)
+        // Note: In Killer, board is usually empty, hints are the sums. 
+        // We allow some clues in Easy Killer.
+        if (mode !== 'killer') {
+            for (let i = 0; i < 81; i++) {
+                if (this.board[i] !== 0) this.fixed[i] = true;
+            }
+        } else {
+             // Killer logic: Keep board mostly empty
+             // If easy, maybe reveal a few numbers, but standard is empty
+             if (difficulty === 'easy') {
+                 // Reveal 5 numbers for easy killer
+                 for(let k=0; k<5; k++) {
+                     let r = Math.floor(Math.random()*81);
+                     this.board[r] = this.solution[r];
+                     this.fixed[r] = true;
+                 }
+             }
+        }
+        
+        this.saveState(); // Initial save
+        this.isPlaying = true;
+    }
+
+    fillDiagonalBoxes() {
+        for (let i = 0; i < 9; i = i + 3) {
+            this.fillBox(i, i);
+        }
+    }
+
+    fillBox(row, col) {
+        let num;
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                do {
+                    num = Math.floor(Math.random() * 9) + 1;
+                } while (!this.isSafeInBox(row, col, num, this.solution));
+                let idx = (row + i) * 9 + (col + j);
+                this.solution[idx] = num;
+            }
+        }
+    }
+
+    isSafeInBox(rowStart, colStart, num, grid) {
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                if (grid[(rowStart + i) * 9 + (colStart + j)] === num) return false;
+            }
+        }
+        return true;
+    }
+
+    // --- Validation Logic ---
+    isValidMove(idx, num, grid) {
+        const row = Math.floor(idx / 9);
+        const col = idx % 9;
+        
+        // Row & Col Check
+        for (let i = 0; i < 9; i++) {
+            if (grid[row * 9 + i] === num && (row * 9 + i) !== idx) return false;
+            if (grid[i * 9 + col] === num && (i * 9 + col) !== idx) return false;
+        }
+
+        // Box Check
+        const startRow = row - row % 3;
+        const startCol = col - col % 3;
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                let cIdx = (startRow + i) * 9 + (startCol + j);
+                if (grid[cIdx] === num && cIdx !== idx) return false;
+            }
+        }
+
+        // Diagonal Mode Check
+        if (this.mode === 'diagonal') {
+            if (row === col) { // Primary diagonal
+                for (let i = 0; i < 9; i++) {
+                    if (grid[i * 9 + i] === num && (i*9+i) !== idx) return false;
+                }
+            }
+            if (row + col === 8) { // Anti-diagonal
+                for (let i = 0; i < 9; i++) {
+                    if (grid[i * 9 + (8 - i)] === num && (i*9+(8-i)) !== idx) return false;
+                }
+            }
+        }
+
+        // Killer Sum Check is complex to validate instantly on single input, 
+        // usually validated by visuals or end-game. We highlight conflicts only.
+        
+        return true;
+    }
+
+    solve(grid, idx = 0, randomize = false) {
+        if (idx >= 81) return true;
+        if (grid[idx] !== 0) return this.solve(grid, idx + 1, randomize);
+
+        let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        if (randomize) nums.sort(() => Math.random() - 0.5);
+
+        for (let num of nums) {
+            if (this.isValidMove(idx, num, grid)) {
+                grid[idx] = num;
+                if (this.solve(grid, idx + 1, randomize)) return true;
+                grid[idx] = 0;
+            }
+        }
+        return false;
+    }
+
+    // --- Killer Cage Generation ---
+    generateKillerCages() {
+        let visited = new Set();
+        this.cages = [];
+        
+        for (let i = 0; i < 81; i++) {
+            if (visited.has(i)) continue;
+
+            // Start a cage
+            let cageSize = Math.floor(Math.random() * 4) + 1; // 1 to 4 cells usually
+            if (cageSize === 1 && Math.random() > 0.2) cageSize = 2; // Prefer >1
+
+            let currentCage = [i];
+            visited.add(i);
+            
+            // Random walk to find neighbors
+            let attempts = 0;
+            while (currentCage.length < cageSize && attempts < 10) {
+                let last = currentCage[currentCage.length - 1];
+                let r = Math.floor(last / 9);
+                let c = last % 9;
+                let neighbors = [];
+                if (r > 0) neighbors.push(last - 9);
+                if (r < 8) neighbors.push(last + 9);
+                if (c > 0) neighbors.push(last - 1);
+                if (c < 8) neighbors.push(last + 1);
+                
+                let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                if (!visited.has(next)) {
+                    currentCage.push(next);
+                    visited.add(next);
+                }
+                attempts++;
+            }
+
+            // Calculate sum
+            let sum = currentCage.reduce((acc, idx) => acc + this.solution[idx], 0);
+            this.cages.push({ cells: currentCage, sum: sum });
+        }
+    }
+
+    // --- Actions ---
+    setInput(idx, val) {
+        if (this.fixed[idx]) return false;
+        
+        // Save for undo
+        this.pushHistory(idx, this.board[idx], val);
+        
+        this.board[idx] = val;
+        this.saveState();
+        return true;
+    }
+
+    pushHistory(idx, oldVal, newVal) {
+        this.history.push({ idx, oldVal, newVal });
+        this.redoStack = []; // Clear redo on new action
+        if (this.history.length > 50) this.history.shift();
+    }
+
+    undo() {
+        if (this.history.length === 0) return null;
+        const move = this.history.pop();
+        this.redoStack.push(move);
+        this.board[move.idx] = move.oldVal;
+        this.saveState();
+        return move.idx;
+    }
+
+    redo() {
+        if (this.redoStack.length === 0) return null;
+        const move = this.redoStack.pop();
+        this.history.push(move);
+        this.board[move.idx] = move.newVal;
+        this.saveState();
+        return move.idx;
+    }
+
+    saveState() {
+        const state = {
+            board: this.board,
+            fixed: this.fixed,
+            solution: this.solution,
+            timer: this.timer,
+            mode: this.mode,
+            difficulty: this.difficulty,
+            cages: this.cages,
+            hints: this.hintsUsed,
+            errors: this.errors
+        };
+        localStorage.setItem('sudoku_save', JSON.stringify(state));
+    }
+
+    loadState() {
+        const saved = localStorage.getItem('sudoku_save');
+        if (!saved) return false;
+        try {
+            const state = JSON.parse(saved);
+            this.board = state.board;
+            this.fixed = state.fixed;
+            this.solution = state.solution;
+            this.timer = state.timer;
+            this.mode = state.mode;
+            this.difficulty = state.difficulty;
+            this.cages = state.cages || [];
+            this.hintsUsed = state.hints || 0;
+            this.errors = state.errors || 0;
+            this.isPlaying = true;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+}
+
+/**
+ * --- VIEW & CONTROLLER ---
+ */
+class SudokuController {
+    constructor() {
+        this.model = new SudokuModel();
+        this.selectedIdx = -1;
+        this.soundEnabled = true;
+        this.audioCtx = null;
+        
+        // DOM Elements
+        this.boardEl = document.getElementById('sudoku-board');
+        this.timerEl = document.getElementById('game-timer');
+        this.modeSel = document.getElementById('mode-select');
+        this.diffSel = document.getElementById('diff-select');
+        
+        this.initEventListeners();
+        
+        // Restore or Start New
+        if (this.model.loadState()) {
+            this.modeSel.value = this.model.mode;
+            this.diffSel.value = this.model.difficulty;
+            this.renderBoard();
+            this.startTimer();
+        } else {
+            this.newGame();
+        }
+    }
+
+    initEventListeners() {
+        // Settings
+        document.getElementById('btn-new-game').onclick = () => this.newGame();
+        document.getElementById('mode-select').onchange = () => this.newGame();
+        document.getElementById('diff-select').onchange = () => this.newGame();
+        
+        // Controls
+        document.querySelectorAll('.btn-num').forEach(btn => {
+            btn.onclick = (e) => this.handleInput(parseInt(e.target.dataset.val));
+        });
+        document.getElementById('btn-delete').onclick = () => this.handleInput(0);
+        document.getElementById('btn-undo').onclick = () => {
+            let idx = this.model.undo();
+            if (idx !== null) {
+                this.renderBoard(); // Full re-render needed to clear validations errors correctly
+                this.selectCell(idx);
+            }
+        };
+        document.getElementById('btn-redo').onclick = () => {
+            let idx = this.model.redo();
+            if (idx !== null) {
+                this.renderBoard();
+                this.selectCell(idx);
+            }
+        };
+        document.getElementById('btn-hint').onclick = () => this.giveHint();
+        document.getElementById('btn-solve').onclick = () => this.solveGame();
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (!this.model.isPlaying) return;
+            if (e.key >= '1' && e.key <= '9') this.handleInput(parseInt(e.key));
+            if (e.key === 'Backspace' || e.key === 'Delete') this.handleInput(0);
+            if (e.key === 'z' && (e.ctrlKey || e.metaKey)) document.getElementById('btn-undo').click();
+            if (e.key === 'y' && (e.ctrlKey || e.metaKey)) document.getElementById('btn-redo').click();
+            
+            // Arrows
+            if(this.selectedIdx !== -1) {
+                if(e.key === 'ArrowUp') this.selectCell(this.selectedIdx - 9 >= 0 ? this.selectedIdx - 9 : this.selectedIdx);
+                if(e.key === 'ArrowDown') this.selectCell(this.selectedIdx + 9 < 81 ? this.selectedIdx + 9 : this.selectedIdx);
+                if(e.key === 'ArrowLeft') this.selectCell(this.selectedIdx % 9 !== 0 ? this.selectedIdx - 1 : this.selectedIdx);
+                if(e.key === 'ArrowRight') this.selectCell((this.selectedIdx + 1) % 9 !== 0 ? this.selectedIdx + 1 : this.selectedIdx);
+            }
+        });
+
+        // Theme
+        document.getElementById('btn-theme').onclick = () => {
+            const body = document.body;
+            const current = body.getAttribute('data-theme');
+            body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+        };
+
+        // Sound
+        document.getElementById('btn-sound').onclick = (e) => {
+            this.soundEnabled = !this.soundEnabled;
+            e.target.innerText = this.soundEnabled ? '🔊' : '🔇';
+        };
+
+        // Highscore
+        document.getElementById('btn-highscore').onclick = () => this.showHighscores();
+    }
+
+    newGame() {
+        const mode = this.modeSel.value;
+        const diff = this.diffSel.value;
+        this.model.generate(mode, diff);
+        this.renderBoard();
+        this.startTimer();
+        this.selectedIdx = -1;
+    }
+
+    startTimer() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.timerInterval = setInterval(() => {
+            if (!this.model.isPlaying) return;
+            this.model.timer++;
+            this.updateTimerDisplay();
+            if (this.model.timer % 5 === 0) this.model.saveState(); // Auto save every 5s
+        }, 1000);
+    }
+
+    updateTimerDisplay() {
+        const min = Math.floor(this.model.timer / 60).toString().padStart(2, '0');
+        const sec = (this.model.timer % 60).toString().padStart(2, '0');
+        this.timerEl.innerText = `${min}:${sec}`;
+    }
+
+    renderBoard() {
+        this.boardEl.innerHTML = '';
+        
+        // Cage Map for Killer visualization
+        let cageMap = new Map(); // idx -> cageObj
+        if (this.model.mode === 'killer') {
+            this.model.cages.forEach(c => c.cells.forEach(idx => cageMap.set(idx, c)));
+        }
+
+        for (let i = 0; i < 81; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.index = i;
+            
+            // Value
+            const val = this.model.board[i];
+            if (val !== 0) {
+                cell.innerText = val;
+                if (this.model.fixed[i]) cell.classList.add('fixed');
+                else cell.classList.add('user-input');
+            }
+
+            // Killer styling
+            if (this.model.mode === 'killer') {
+                const cage = cageMap.get(i);
+                if (cage) {
+                    // Show sum in top left of first cell in cage
+                    if (cage.cells[0] === i) {
+                        const sumSpan = document.createElement('span');
+                        sumSpan.classList.add('cage-sum');
+                        sumSpan.innerText = cage.sum;
+                        cell.appendChild(sumSpan);
+                    }
+                    // Borders
+                    const r = Math.floor(i/9), c = i%9;
+                    if (!cage.cells.includes(i - 9)) cell.classList.add('cage-border-top');
+                    if (!cage.cells.includes(i + 9)) cell.classList.add('cage-border-bottom');
+                    if (!cage.cells.includes(i - 1) || c===0) cell.classList.add('cage-border-left');
+                    if (!cage.cells.includes(i + 1) || c===8) cell.classList.add('cage-border-right');
+                }
+            }
+
+            // Diagonal styling (visual X)
+            if (this.model.mode === 'diagonal') {
+                const r = Math.floor(i/9), c = i%9;
+                if (r === c || r + c === 8) {
+                    cell.style.backgroundColor = 'var(--bg-color)';
+                }
+            }
+
+            cell.onclick = () => this.selectCell(i);
+            this.boardEl.appendChild(cell);
+        }
+        
+        // Re-validate visual state
+        this.highlightErrors();
+    }
+
+    selectCell(idx) {
+        if (this.selectedIdx !== -1) {
+            this.boardEl.children[this.selectedIdx].classList.remove('selected');
+        }
+        this.selectedIdx = idx;
+        const cell = this.boardEl.children[idx];
+        cell.classList.add('selected');
+
+        // Highlight logic
+        const val = this.model.board[idx];
+        const row = Math.floor(idx / 9);
+        const col = idx % 9;
+        const boxStartRow = row - row % 3;
+        const boxStartCol = col - col % 3;
+
+        Array.from(this.boardEl.children).forEach((c, i) => {
+            c.classList.remove('highlight-same', 'highlight-related');
+            
+            // Highlight same numbers
+            if (val !== 0 && this.model.board[i] === val) {
+                c.classList.add('highlight-same');
+            }
+
+            // Highlight related (row, col, box)
+            const r = Math.floor(i / 9);
+            const co = i % 9;
+            const bR = r - r % 3;
+            const bC = co - co % 3;
+
+            if (r === row || co === col || (bR === boxStartRow && bC === boxStartCol)) {
+                if (i !== idx) c.classList.add('highlight-related');
+            }
+        });
+        
+        this.playSound('click');
+    }
+
+    handleInput(val) {
+        if (this.selectedIdx === -1) return;
+        if (this.model.fixed[this.selectedIdx]) return;
+
+        // Set value
+        this.model.setInput(this.selectedIdx, val);
+        
+        // Update View
+        const cell = this.boardEl.children[this.selectedIdx];
+        
+        // Clear old text but keep cage hint if any
+        const cageSum = cell.querySelector('.cage-sum');
+        cell.innerText = val === 0 ? '' : val;
+        if (cageSum) cell.appendChild(cageSum);
+
+        cell.className = cell.className.replace(/user-input|error/g, '').trim(); // reset classes
+        cell.classList.add('selected'); // keep selected
+        if(this.model.mode === 'killer') {
+             // Re-add cage borders logic lost by className reset (simplified: re-render is cleaner but slower)
+             // Optimization: Just add user-input class
+             cell.classList.add('user-input');
+        } else {
+             cell.classList.add('user-input');
+        }
+
+        if (val !== 0) {
+            // Validation
+            if (!this.model.isValidMove(this.selectedIdx, val, this.model.board)) {
+                cell.classList.add('error');
+                this.model.errors++;
+                this.playSound('error');
+            } else {
+                this.playSound('input');
+            }
+        } else {
+            this.playSound('click');
+        }
+
+        // Global Validation Update (remove errors from other cells if conflict resolved)
+        this.highlightErrors();
+        this.selectCell(this.selectedIdx); // Re-trigger highlights
+
+        this.checkWin();
+    }
+
+    highlightErrors() {
+        for (let i = 0; i < 81; i++) {
+            const val = this.model.board[i];
+            const cell = this.boardEl.children[i];
+            cell.classList.remove('error');
+            if (val !== 0 && !this.model.fixed[i]) {
+                if (!this.model.isValidMove(i, val, this.model.board)) {
+                    cell.classList.add('error');
+                }
+                // Check against solution as ultimate fallback (optional, prevents frustration)
+                if (val !== this.model.solution[i]) {
+                   // Uncomment to force strict mode: cell.classList.add('error');
+                }
+            }
+        }
+    }
+
+    giveHint() {
+        if (!this.model.isPlaying) return;
+        // Find empty cells
+        let empties = [];
+        for(let i=0; i<81; i++) if(this.model.board[i] === 0) empties.push(i);
+        
+        if(empties.length === 0) return;
+        
+        const idx = empties[Math.floor(Math.random() * empties.length)];
+        this.model.board[idx] = this.model.solution[idx];
+        this.model.fixed[idx] = true; // Hints become fixed
+        this.model.hintsUsed++;
+        
+        this.renderBoard(); // Full render to lock cell
+        this.selectCell(idx);
+    }
+
+    solveGame() {
+        if (confirm("Sind Sie sicher? Das Spiel wird beendet und die Lösung angezeigt.")) {
+            this.model.board = [...this.model.solution];
+            this.model.isPlaying = false;
+            clearInterval(this.timerInterval);
+            this.renderBoard();
+        }
+    }
+
+    checkWin() {
+        if (this.model.board.includes(0)) return; // Not full
+
+        // Verify Full Correctness
+        for (let i = 0; i < 81; i++) {
+            if (this.model.board[i] !== this.model.solution[i]) return;
+        }
+
+        // Victory
+        this.model.isPlaying = false;
+        clearInterval(this.timerInterval);
+        this.playSound('win');
+        
+        // Score Calculation
+        // Base: 1000. Diff Multiplier: Easy 1, Med 1.5, Hard 2.
+        // Time penalty: -1 per second. Errors: -50. Hints: -100.
+        let diffMult = this.model.difficulty === 'easy' ? 1 : this.model.difficulty === 'medium' ? 1.5 : 2;
+        let score = Math.max(0, Math.floor((1000 * diffMult) - this.model.timer - (this.model.errors * 50) - (this.model.hintsUsed * 100)));
+
+        setTimeout(() => {
+            alert(`Glückwunsch! Gewonnen!\nPunkte: ${score}\nZeit: ${this.timerEl.innerText}`);
+            this.saveHighscore(score);
+        }, 300);
+    }
+
+    // --- Audio ---
+    playSound(type) {
+        if (!this.soundEnabled) return;
+        if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+
+        const now = this.audioCtx.currentTime;
+        
+        if (type === 'click') {
+            osc.frequency.setValueAtTime(300, now);
+            gain.gain.setValueAtTime(0.1, now);
+            osc.start(now);
+            osc.stop(now + 0.05);
+        } else if (type === 'input') {
+            osc.frequency.setValueAtTime(600, now);
+            gain.gain.setValueAtTime(0.1, now);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'error') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'win') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(880, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.6);
+            osc.start(now);
+            osc.stop(now + 0.6);
+        }
+    }
+
+    // --- Highscore ---
+    saveHighscore(score) {
+        let scores = JSON.parse(localStorage.getItem('sudoku_highscores') || '[]');
+        scores.push({
+            score: score,
+            date: new Date().toLocaleDateString(),
+            mode: this.model.mode,
+            diff: this.model.difficulty
+        });
+        scores.sort((a, b) => b.score - a.score);
+        scores = scores.slice(0, 5);
+        localStorage.setItem('sudoku_highscores', JSON.stringify(scores));
+    }
+
+    showHighscores() {
+        const list = document.getElementById('highscore-list');
+        list.innerHTML = '';
+        let scores = JSON.parse(localStorage.getItem('sudoku_highscores') || '[]');
+        if (scores.length === 0) list.innerHTML = '<li>Noch keine Einträge</li>';
+        
+        scores.forEach(s => {
+            let li = document.createElement('li');
+            li.className = 'highscore-item';
+            li.innerHTML = `<span>${s.mode} (${s.diff})</span> <b>${s.score} Pkt</b>`;
+            list.appendChild(li);
+        });
+        document.getElementById('modal-highscore').style.display = 'flex';
+    }
+}
+
+// Start App
+window.onload = () => {
+    new SudokuController();
+};
+</script>
+</body>
+</html>
