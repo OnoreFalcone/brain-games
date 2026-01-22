@@ -1,0 +1,181 @@
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --board-bg: #ffffff;
+    --grid-line: #dee2e6;
+    --grid-line-thick: #343a40;
+    --primary: #0d6efd;
+    --highlight-same: #cff4fc;
+    --highlight-related: #e2e6ea;
+    --error-bg: #f8d7da;
+    --error-text: #842029;
+    --btn-radius: 8px;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+[data-theme="dark"] {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --board-bg: #1e1e1e;
+    --grid-line: #444;
+    --grid-line-thick: #888;
+    --primary: #4dabf7;
+    --highlight-same: #1a3c4d;
+    --highlight-related: #2c2c2c;
+    --error-bg: #4c262a;
+    --error-text: #ea868f;
+}
+
+* { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh; /* Dynamic height for mobile browsers */
+    overflow: hidden; /* Prevent scrolling */
+}
+
+/* Header */
+header {
+    flex: 0 0 auto;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--board-bg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.header-left h1 { margin: 0; font-size: 1.2rem; }
+.timer { font-family: monospace; font-size: 1.2rem; font-weight: bold; color: var(--primary); margin-left: 10px; }
+.header-right button { padding: 8px; font-size: 1.2rem; background: none; }
+
+/* Settings */
+.settings-bar {
+    flex: 0 0 auto;
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    background: var(--bg-color);
+}
+select, #btn-new-game {
+    padding: 8px;
+    border-radius: var(--btn-radius);
+    border: 1px solid var(--grid-line);
+    background: var(--board-bg);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+.btn-primary { background-color: var(--primary); color: white; border: none; font-weight: bold; }
+
+/* Game Board Area - Hier passiert die Magie für Responsiveness */
+#game-container {
+    flex: 1 1 auto; /* Nimmt den restlichen Platz ein */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    overflow: hidden;
+    width: 100%;
+}
+
+#sudoku-board {
+    display: grid;
+    /* Spaltenanzahl wird via JS gesetzt (--cols) */
+    grid-template-columns: repeat(var(--cols, 9), 1fr);
+    grid-template-rows: repeat(var(--cols, 9), 1fr);
+    
+    /* Smart Sizing: Max width OR Max height based on aspect ratio */
+    width: min(95vw, 60vh); 
+    aspect-ratio: 1;
+    
+    background-color: var(--grid-line-thick);
+    border: 2px solid var(--grid-line-thick);
+    gap: 1px;
+}
+
+.cell {
+    background-color: var(--board-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: clamp(1rem, 5vw, 1.8rem); /* Adaptive Fontgröße */
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* Borders logic handling via attributes/classes from JS is cleaner, 
+   but here is CSS logic for 9x9 and 6x6 */
+   
+/* 9x9 Standard Borders */
+#sudoku-board[data-size="9"] .cell:nth-child(3n) { border-right: 2px solid var(--grid-line-thick); }
+#sudoku-board[data-size="9"] .cell:nth-child(9n) { border-right: none; }
+#sudoku-board[data-size="9"] .cell:nth-child(n+19):nth-child(-n+27),
+#sudoku-board[data-size="9"] .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid var(--grid-line-thick); }
+
+/* 6x6 Mini Borders (2 rows high, 3 cols wide boxes) */
+#sudoku-board[data-size="6"] .cell:nth-child(3n) { border-right: 2px solid var(--grid-line-thick); }
+#sudoku-board[data-size="6"] .cell:nth-child(6n) { border-right: none; }
+#sudoku-board[data-size="6"] .cell:nth-child(n+13):nth-child(-n+18) { border-bottom: 2px solid var(--grid-line-thick); }
+
+/* States */
+.cell.fixed { font-weight: 800; color: var(--text-color); }
+.cell.user-input { color: var(--primary); }
+.cell.selected { background-color: var(--primary) !important; color: white !important; }
+.cell.highlight-related { background-color: var(--highlight-related); }
+.cell.highlight-same { background-color: var(--highlight-same); font-weight: bold; }
+.cell.error { background-color: var(--error-bg) !important; color: var(--error-text) !important; }
+
+/* Controls Area */
+.controls-area {
+    flex: 0 0 auto;
+    padding: 10px;
+    background-color: var(--board-bg);
+    padding-bottom: max(10px, env(safe-area-inset-bottom)); /* Für iPhone Home Bar */
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 10px;
+}
+.action-buttons button {
+    flex: 1; margin: 0 4px; padding: 10px 0;
+    background: #e9ecef; border-radius: 6px; border: none; font-size: 1.2rem;
+}
+
+.numpad-container { display: flex; flex-direction: column; gap: 5px; }
+.numpad { display: grid; gap: 5px; }
+#numpad-1-5 { grid-template-columns: repeat(5, 1fr); }
+#numpad-6-9 { grid-template-columns: repeat(4, 1fr); width: 80%; margin: 0 auto; }
+
+/* Wenn 6x6, dann verstecken wir die untere Reihe via JS/CSS */
+.numpad.hidden { display: none; }
+/* Wenn 6x6, machen wir die obere Reihe breiter */
+.numpad.full-width { grid-template-columns: repeat(6, 1fr) !important; }
+
+.btn-num {
+    padding: 15px 0;
+    background: #e9ecef; border: none; border-radius: 6px;
+    font-size: 1.5rem; font-weight: bold; color: var(--text-color);
+}
+[data-theme="dark"] .action-buttons button, 
+[data-theme="dark"] .btn-num { background-color: #333; }
+
+/* Modals */
+.modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); z-index: 100;
+    justify-content: center; align-items: center;
+}
+.modal-content {
+    background: var(--board-bg); padding: 25px; border-radius: 12px;
+    width: 90%; max-width: 350px; text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.highscore-item { display: flex; justify-content: space-between; border-bottom: 1px solid var(--grid-line); padding: 8px 0; }
