@@ -1,0 +1,184 @@
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --board-bg: #ffffff;
+    --grid-line: #dee2e6;
+    --primary: #0d6efd;
+    --path-color: rgba(13, 110, 253, 0.2);
+    --wall-color: #343a40;
+    --btn-radius: 8px;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+[data-theme="dark"] {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --board-bg: #1e1e1e;
+    --grid-line: #444;
+    --primary: #4dabf7;
+    --path-color: rgba(77, 171, 247, 0.3);
+    --wall-color: #555;
+}
+
+* { box-sizing: border-box; touch-action: none; -webkit-tap-highlight-color: transparent; }
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+/* Header & UI (Ähnlich Sudoku) */
+header {
+    flex: 0 0 auto;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--board-bg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.header-left { display: flex; align-items: center; }
+.header-left h1 { margin: 0; font-size: 1.2rem; }
+.level-indicator { margin-left: 10px; font-weight: bold; color: var(--primary); }
+.header-right button { padding: 8px; font-size: 1.2rem; background: none; border: none; cursor: pointer; color: var(--text-color); }
+
+.settings-bar {
+    flex: 0 0 auto;
+    padding: 8px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-color);
+}
+.settings-bar button {
+    padding: 6px 12px;
+    border-radius: var(--btn-radius);
+    border: 1px solid var(--grid-line);
+    background: var(--board-bg);
+    color: var(--text-color);
+    font-weight: bold;
+    cursor: pointer;
+}
+.btn-primary { background-color: var(--primary) !important; color: white !important; border: none !important; }
+
+/* Game Area */
+#game-container {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    width: 100%;
+}
+
+#zip-board {
+    display: grid;
+    /* Grid-Template wird via JS gesetzt */
+    width: min(95vw, 60vh);
+    aspect-ratio: 1;
+    gap: 2px;
+    background-color: var(--bg-color); /* Lücken Farbe */
+}
+
+.cell {
+    background-color: var(--board-bg);
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: clamp(1rem, 4vw, 1.5rem);
+    font-weight: bold;
+    position: relative;
+    user-select: none;
+    transition: background-color 0.1s;
+}
+
+/* ZELL-ZUSTÄNDE */
+.cell.wall {
+    background-color: var(--wall-color);
+}
+
+.cell.fixed {
+    color: var(--text-color);
+    box-shadow: inset 0 0 0 2px var(--grid-line); /* Markierung für vorgegebene Zahlen */
+}
+
+.cell.path {
+    background-color: var(--path-color);
+    color: var(--primary);
+}
+
+.cell.current-head {
+    background-color: var(--primary);
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+    border-radius: 50%;
+}
+
+/* Pfad-Verbindungen (Visuelle Linien) */
+.cell::after {
+    content: '';
+    position: absolute;
+    background-color: var(--primary);
+    opacity: 0.5;
+    z-index: 1;
+    display: none;
+}
+/* Linie nach Oben */
+.cell[data-dir="up"]::after {
+    display: block; width: 4px; height: 60%; top: -30%; left: calc(50% - 2px);
+}
+/* Linie nach Unten */
+.cell[data-dir="down"]::after {
+    display: block; width: 4px; height: 60%; bottom: -30%; left: calc(50% - 2px);
+}
+/* Linie nach Links */
+.cell[data-dir="left"]::after {
+    display: block; height: 4px; width: 60%; left: -30%; top: calc(50% - 2px);
+}
+/* Linie nach Rechts */
+.cell[data-dir="right"]::after {
+    display: block; height: 4px; width: 60%; right: -30%; top: calc(50% - 2px);
+}
+
+/* Footer Controls */
+.controls-area {
+    flex: 0 0 auto;
+    padding: 15px;
+    text-align: center;
+    background-color: var(--board-bg);
+    padding-bottom: max(15px, env(safe-area-inset-bottom));
+}
+.instruction-text { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-color); opacity: 0.8; }
+.action-buttons button {
+    padding: 12px 20px;
+    background: #e9ecef;
+    border: none;
+    border-radius: var(--btn-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-color);
+    cursor: pointer;
+}
+[data-theme="dark"] .action-buttons button { background-color: #333; }
+
+/* Modals */
+.modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); z-index: 100;
+    justify-content: center; align-items: center;
+}
+.modal-content {
+    background: var(--board-bg); padding: 25px; border-radius: 12px;
+    width: 90%; max-width: 350px; text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}

@@ -3,7 +3,7 @@
  */
 class SudokuModel {
     constructor() {
-        this.size = 9; // Default 9x9
+        this.size = 9;
         this.boxW = 3;
         this.boxH = 3;
         this.reset();
@@ -14,6 +14,7 @@ class SudokuModel {
         this.board = Array(this.totalCells).fill(0);
         this.solution = Array(this.totalCells).fill(0);
         this.fixed = Array(this.totalCells).fill(false);
+        this.cages = [];
         this.history = [];
         this.redoStack = [];
         this.timer = 0;
@@ -23,47 +24,42 @@ class SudokuModel {
     }
 
     generate(mode, difficulty) {
-        // Konfiguration setzen
         this.mode = mode;
         this.difficulty = difficulty;
         
         if (mode === 'mini') {
             this.size = 6;
-            this.boxW = 3; // 3 Spalten breit
-            this.boxH = 2; // 2 Zeilen hoch
+            this.boxW = 3;
+            this.boxH = 2;
         } else {
             this.size = 9;
             this.boxW = 3;
             this.boxH = 3;
         }
         
-        this.reset(); // Reset mit neuer Größe
+        this.reset();
 
-        // Board generieren
-        // Bei 6x6 ist Brute Force schnell genug für das ganze Board
-        // Bei 9x9 füllen wir erst die Diagonalen Boxen für Randomisierung
         if (this.size === 9) {
             this.fillDiagonalBoxes();
         } else {
-            // Für Mini Sudoku: Einfach erste Box füllen für Randomness
             this.fillBox(0, 0); 
         }
 
         this.solve(this.solution, 0, true);
         this.board = [...this.solution];
 
-        // Zahlen entfernen
+        if (mode === 'killer') {
+            this.generateKillerCages();
+        }
+
         let attempts = 0;
         if (this.size === 9) {
             attempts = difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 58;
         } else {
-            // 6x6 (Total 36 Zellen)
             attempts = difficulty === 'easy' ? 12 : difficulty === 'medium' ? 18 : 22;
         }
-
-        // Killer Modus Logik hier vereinfacht/deaktiviert für Mini, 
-        // oder man müsste Käfige für 6x6 anpassen. 
-        // Wir lassen Killer nur für 9x9 Classic aktiv in der UI Logik, oder ignorieren es hier.
+        
+        if (mode === 'killer') attempts = this.totalCells; 
 
         while (attempts > 0) {
             let idx = Math.floor(Math.random() * this.totalCells);
@@ -73,7 +69,13 @@ class SudokuModel {
             }
         }
 
-        // Fixed setzen
+        if (mode === 'killer' && difficulty === 'easy') {
+             for(let k=0; k<5; k++) {
+                 let r = Math.floor(Math.random() * this.totalCells);
+                 this.board[r] = this.solution[r];
+             }
+        }
+
         for (let i = 0; i < this.totalCells; i++) {
             if (this.board[i] !== 0) this.fixed[i] = true;
         }
@@ -84,8 +86,6 @@ class SudokuModel {
 
     fillDiagonalBoxes() {
         for (let i = 0; i < this.size; i += this.boxH) {
-            // Bei 9x9: 0, 3, 6 (Box Starts diagonal)
-            // Bei 6x6 ist das komplizierter wegen 2x3. Wir nutzen oben vereinfachte Logik.
             if(i < this.size) this.fillBox(i, i);
         }
     }
@@ -105,7 +105,6 @@ class SudokuModel {
     }
 
     isSafeInBox(rowStart, colStart, num, grid) {
-        // Finde Box Start Koordinaten
         const rStart = rowStart - (rowStart % this.boxH);
         const cStart = colStart - (colStart % this.boxW);
 
@@ -122,13 +121,11 @@ class SudokuModel {
         const row = Math.floor(idx / this.size);
         const col = idx % this.size;
         
-        // Zeile & Spalte
         for (let i = 0; i < this.size; i++) {
             if (grid[row * this.size + i] === num && (row * this.size + i) !== idx) return false;
             if (grid[i * this.size + col] === num && (i * this.size + col) !== idx) return false;
         }
 
-        // Box
         const startRow = row - row % this.boxH;
         const startCol = col - col % this.boxW;
         for (let i = 0; i < this.boxH; i++) {
@@ -138,7 +135,6 @@ class SudokuModel {
             }
         }
 
-        // Diagonal (nur für 9x9 implementiert oder angepasst für 6x6)
         if (this.mode === 'diagonal') {
             if (row === col) { 
                 for (let i = 0; i < this.size; i++) {
@@ -172,9 +168,42 @@ class SudokuModel {
         return false;
     }
 
-    // ... Actions (setInput, undo, redo, saveState, loadState) bleiben gleich ...
-    // HINWEIS: Bei loadState muss this.size neu gesetzt werden!
-    
+    generateKillerCages() {
+        let visited = new Set();
+        this.cages = [];
+        
+        for (let i = 0; i < this.totalCells; i++) {
+            if (visited.has(i)) continue;
+            
+            let cageSize = Math.floor(Math.random() * 4) + 1;
+            if (cageSize === 1 && Math.random() > 0.2) cageSize = 2;
+
+            let currentCage = [i];
+            visited.add(i);
+            
+            let attempts = 0;
+            while (currentCage.length < cageSize && attempts < 10) {
+                let last = currentCage[currentCage.length - 1];
+                let r = Math.floor(last / this.size);
+                let c = last % this.size;
+                let neighbors = [];
+                if (r > 0) neighbors.push(last - this.size);
+                if (r < this.size - 1) neighbors.push(last + this.size);
+                if (c > 0) neighbors.push(last - 1);
+                if (c < this.size - 1) neighbors.push(last + 1);
+                
+                let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                if (!visited.has(next)) {
+                    currentCage.push(next);
+                    visited.add(next);
+                }
+                attempts++;
+            }
+            let sum = currentCage.reduce((acc, idx) => acc + this.solution[idx], 0);
+            this.cages.push({ cells: currentCage, sum: sum });
+        }
+    }
+
     setInput(idx, val) {
         if (this.fixed[idx]) return false;
         this.pushHistory(idx, this.board[idx], val);
@@ -210,10 +239,11 @@ class SudokuModel {
             solution: this.solution,
             timer: this.timer,
             mode: this.mode,
-            size: this.size, // Speichern der Größe
+            size: this.size,
             difficulty: this.difficulty,
             hints: this.hintsUsed,
-            errors: this.errors
+            errors: this.errors,
+            cages: this.cages
         };
         localStorage.setItem('sudoku_save', JSON.stringify(state));
     }
@@ -223,9 +253,8 @@ class SudokuModel {
         try {
             const state = JSON.parse(saved);
             this.mode = state.mode;
-            this.size = state.size || 9; // Fallback
+            this.size = state.size || 9;
             
-            // Box Maße setzen basierend auf Size
             if(this.size === 6) { this.boxW = 3; this.boxH = 2; }
             else { this.boxW = 3; this.boxH = 3; }
 
@@ -237,6 +266,7 @@ class SudokuModel {
             this.difficulty = state.difficulty;
             this.hintsUsed = state.hints || 0;
             this.errors = state.errors || 0;
+            this.cages = state.cages || [];
             this.isPlaying = true;
             return true;
         } catch (e) {
@@ -253,8 +283,8 @@ class SudokuController {
         this.model = new SudokuModel();
         this.selectedIdx = -1;
         this.soundEnabled = true;
+        this.audioCtx = null;
         
-        // Elements
         this.boardEl = document.getElementById('sudoku-board');
         this.timerEl = document.getElementById('game-timer');
         this.modeSel = document.getElementById('mode-select');
@@ -265,7 +295,7 @@ class SudokuController {
         if (this.model.loadState()) {
             this.modeSel.value = this.model.mode;
             this.diffSel.value = this.model.difficulty;
-            this.updateUIForMode(); // Wichtig für Grid Layout
+            this.updateUIForMode();
             this.renderBoard();
             this.startTimer();
         } else {
@@ -293,7 +323,6 @@ class SudokuController {
         document.getElementById('btn-hint').onclick = () => this.giveHint();
         document.getElementById('btn-solve').onclick = () => this.solveGame();
         
-        // Modals
         document.getElementById('btn-close-modal').onclick = () => document.getElementById('modal-highscore').style.display = 'none';
         document.getElementById('btn-next-game').onclick = () => {
             document.getElementById('modal-win').style.display = 'none';
@@ -301,7 +330,6 @@ class SudokuController {
         };
         document.getElementById('btn-highscore').onclick = () => this.showHighscores();
 
-        // Theme & Sound
         document.getElementById('btn-theme').onclick = () => {
             const body = document.body;
             const current = body.getAttribute('data-theme');
@@ -325,21 +353,14 @@ class SudokuController {
 
     updateUIForMode() {
         const size = this.model.size;
-        // Setze CSS Variable für Grid Spalten
         this.boardEl.style.setProperty('--cols', size);
         this.boardEl.dataset.size = size;
 
-        // Tastatur anpassen
         const numpad1 = document.getElementById('numpad-1-5');
         const numpad2 = document.getElementById('numpad-6-9');
         
         if (size === 6) {
-            numpad2.classList.add('hidden'); // Verstecke 6-9 Reihe (fast, 6 brauchen wir noch)
-            // Wir müssen Button 6 verschieben oder NumPad Struktur ändern.
-            // Einfacher Hack: Button 6 in Reihe 1 schieben via JS? 
-            // Nein, CSS Grid Change ist sauberer.
-            
-            // Wir bauen das Numpad dynamisch um für 6x6
+            numpad2.classList.add('hidden');
             numpad1.innerHTML = '';
             for(let i=1; i<=6; i++) {
                 const btn = document.createElement('button');
@@ -349,10 +370,9 @@ class SudokuController {
                 btn.onclick = (e) => this.handleInput(parseInt(e.target.dataset.val));
                 numpad1.appendChild(btn);
             }
-            numpad1.classList.add('full-width'); // CSS Klasse für 6 Spalten
+            numpad1.classList.add('full-width');
             numpad2.style.display = 'none';
         } else {
-            // Restore 9x9 Layout
             numpad1.innerHTML = '';
             for(let i=1; i<=5; i++) {
                 const btn = document.createElement('button');
@@ -363,7 +383,7 @@ class SudokuController {
                 numpad1.appendChild(btn);
             }
             numpad1.classList.remove('full-width');
-            numpad2.style.display = 'grid'; // Restore
+            numpad2.style.display = 'grid';
         }
     }
 
@@ -385,8 +405,12 @@ class SudokuController {
 
     renderBoard() {
         this.boardEl.innerHTML = '';
-        const size = this.model.size;
         
+        let cageMap = new Map(); 
+        if (this.model.mode === 'killer') {
+            this.model.cages.forEach(c => c.cells.forEach(idx => cageMap.set(idx, c)));
+        }
+
         for (let i = 0; i < this.model.totalCells; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
@@ -399,8 +423,26 @@ class SudokuController {
                 else cell.classList.add('user-input');
             }
 
-            // Diagonal Styling
+            if (this.model.mode === 'killer') {
+                const cage = cageMap.get(i);
+                if (cage) {
+                    if (cage.cells[0] === i) {
+                        const sumSpan = document.createElement('span');
+                        sumSpan.classList.add('cage-sum');
+                        sumSpan.innerText = cage.sum;
+                        cell.appendChild(sumSpan);
+                    }
+                    const r = Math.floor(i/this.model.size), c = i%this.model.size;
+                    const size = this.model.size;
+                    if (!cage.cells.includes(i - size)) cell.classList.add('cage-border-top');
+                    if (!cage.cells.includes(i + size)) cell.classList.add('cage-border-bottom');
+                    if (!cage.cells.includes(i - 1) || c===0) cell.classList.add('cage-border-left');
+                    if (!cage.cells.includes(i + 1) || c===size-1) cell.classList.add('cage-border-right');
+                }
+            }
+
             if (this.model.mode === 'diagonal') {
+                 const size = this.model.size;
                  const r = Math.floor(i/size), c = i%size;
                  if (r === c || r + c === size - 1) cell.style.backgroundColor = 'var(--bg-color)';
             }
@@ -442,7 +484,87 @@ class SudokuController {
                 if (i !== idx) c.classList.add('highlight-related');
             }
         });
-        // playSound logic...
+        this.playSound('click');
+    }
+
+    checkUnitCompletion(idx) {
+        const size = this.model.size;
+        const boxW = this.model.boxW;
+        const boxH = this.model.boxH;
+        const row = Math.floor(idx / size);
+        const col = idx % size;
+        const board = this.model.board;
+        const solution = this.model.solution;
+
+        let cellsToAnimate = new Set();
+
+        // 1. Prüfe Zeile
+        let rowIndices = [];
+        let isRowComplete = true;
+        for (let c = 0; c < size; c++) {
+            let currIdx = row * size + c;
+            rowIndices.push(currIdx);
+            if (board[currIdx] !== solution[currIdx]) {
+                isRowComplete = false;
+                break;
+            }
+        }
+        if (isRowComplete) rowIndices.forEach(i => cellsToAnimate.add(i));
+
+        // 2. Prüfe Spalte
+        let colIndices = [];
+        let isColComplete = true;
+        for (let r = 0; r < size; r++) {
+            let currIdx = r * size + col;
+            colIndices.push(currIdx);
+            if (board[currIdx] !== solution[currIdx]) {
+                isColComplete = false;
+                break;
+            }
+        }
+        if (isColComplete) colIndices.forEach(i => cellsToAnimate.add(i));
+
+        // 3. Prüfe Box
+        let boxIndices = [];
+        let isBoxComplete = true;
+        const startRow = row - (row % boxH);
+        const startCol = col - (col % boxW);
+        
+        for (let r = 0; r < boxH; r++) {
+            for (let c = 0; c < boxW; c++) {
+                let currIdx = (startRow + r) * size + (startCol + c);
+                boxIndices.push(currIdx);
+                if (board[currIdx] !== solution[currIdx]) {
+                    isBoxComplete = false;
+                    break;
+                }
+            }
+        }
+        if (isBoxComplete) boxIndices.forEach(i => cellsToAnimate.add(i));
+
+        // 4. Animation
+        if (cellsToAnimate.size > 0) {
+            cellsToAnimate.forEach(i => {
+                const cell = this.boardEl.children[i];
+                
+                // Trick: Wir entfernen die "selected" Klasse temporär, 
+                // damit die Hintergrundfarbe der Animation sicher sichtbar ist.
+                // (Die "blaue" Markierung stört sonst das Grün)
+                const wasSelected = cell.classList.contains('selected');
+                if (wasSelected) cell.classList.remove('selected');
+
+                cell.classList.remove('success-pulse');
+                void cell.offsetWidth; // Trigger reflow
+                cell.classList.add('success-pulse');
+                
+                setTimeout(() => {
+                    cell.classList.remove('success-pulse');
+                    // Wenn es selektiert war, machen wir es wieder blau
+                    if (wasSelected) cell.classList.add('selected');
+                }, 1500);
+            });
+            this.playSound('win'); 
+        }
     }
 
     handleInput(val) {
@@ -453,17 +575,23 @@ class SudokuController {
         const cell = this.boardEl.children[this.selectedIdx];
         cell.innerText = val === 0 ? '' : val;
         
-        cell.className = 'cell selected user-input'; // Reset classes keep selected
+        cell.className = 'cell selected user-input'; 
         
         if (val !== 0) {
             if (!this.model.isValidMove(this.selectedIdx, val, this.model.board)) {
                 cell.classList.add('error');
                 this.model.errors++;
+                this.playSound('error');
+            } else {
+                this.playSound('input');
+                this.checkUnitCompletion(this.selectedIdx);
             }
+        } else {
+            this.playSound('click');
         }
         
         this.highlightErrors();
-        this.selectCell(this.selectedIdx); // Refresh highlights
+        this.selectCell(this.selectedIdx); 
         this.checkWin();
     }
 
@@ -490,6 +618,7 @@ class SudokuController {
 
         this.model.isPlaying = false;
         clearInterval(this.timerInterval);
+        this.playSound('win');
         
         let diffMult = this.model.difficulty === 'easy' ? 1 : this.model.difficulty === 'medium' ? 1.5 : 2;
         let score = Math.max(0, Math.floor((1000 * diffMult) - this.model.timer - (this.model.errors * 50) - (this.model.hintsUsed * 100)));
@@ -503,7 +632,6 @@ class SudokuController {
         }, 500);
     }
     
-    // Hint, Solve, Audio, Highscore Helper funktionen analog zum alten Code...
     giveHint() {
         if (!this.model.isPlaying) return;
         let empties = [];
@@ -546,6 +674,47 @@ class SudokuController {
         });
         document.getElementById('modal-highscore').style.display = 'flex';
     }
+    
+    playSound(type) {
+        if (!this.soundEnabled) return;
+        if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+
+        const now = this.audioCtx.currentTime;
+        
+        if (type === 'click') {
+            osc.frequency.setValueAtTime(300, now);
+            gain.gain.setValueAtTime(0.1, now);
+            osc.start(now);
+            osc.stop(now + 0.05);
+        } else if (type === 'input') {
+            osc.frequency.setValueAtTime(600, now);
+            gain.gain.setValueAtTime(0.1, now);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'error') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
+        } else if (type === 'win') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(880, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.6);
+            osc.start(now);
+            osc.stop(now + 0.6);
+        }
+    }
 }
 
-window.onload = () => new SudokuController();
+window.onload = () => {
+    new SudokuController();
+};

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zip Master</title>
+    <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <a href="../index.html" style="text-decoration:none; margin-right:10px;">🏠</a>
+        <h1>Zip</h1>
+        <div id="level-display" class="level-indicator">Level 1</div>
+    </div>
+    <div class="header-right">
+        <button id="btn-theme" title="Theme">🌙</button>
+    </div>
+</header>
+
+<div class="settings-bar">
+    <button id="btn-prev-level">◀</button>
+    <span id="level-title">5x5 Intro</span>
+    <button id="btn-next-level">▶</button>
+    <button id="btn-reset" class="btn-primary" style="margin-left:auto;">Reset ↺</button>
+</div>
+
+<div id="game-container">
+    <div id="zip-board"></div>
+</div>
+
+<div class="controls-area">
+    <p class="instruction-text">Verbinde <strong>1</strong> bis <strong id="max-val-display">25</strong>. Fülle alle Felder!</p>
+    <div class="action-buttons">
+        <button id="btn-undo">Rückgängig ↩️</button>
+    </div>
+</div>
+
+<div id="modal-win" class="modal">
+    <div class="modal-content">
+        <div style="font-size: 3rem; margin-bottom: 10px;">🎉</div>
+        <h2>Level geschafft!</h2>
+        <button id="btn-next-game" class="btn-primary" style="width: 100%; padding: 15px;">Nächstes Level 🚀</button>
+    </div>
+</div>
+
+<script src="zip.js?v=1"></script>
+
+</body>
+</html>

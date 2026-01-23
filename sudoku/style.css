@@ -9,6 +9,11 @@
     --highlight-related: #e2e6ea;
     --error-bg: #f8d7da;
     --error-text: #842029;
+    
+    /* WICHTIG: Farben für Erfolg */
+    --success-bg: #ace9cd;
+    --success-transparent: rgb(155, 221, 191); /* Etwas kräftiger für bessere Sichtbarkeit */
+    
     --btn-radius: 8px;
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -24,6 +29,10 @@
     --highlight-related: #2c2c2c;
     --error-bg: #4c262a;
     --error-text: #ea868f;
+    
+    /* Dark Mode Grün */
+    --success-bg: #1b3829;
+    --success-transparent: rgba(40, 167, 69, 0.4);
 }
 
 * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -36,8 +45,8 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    height: 100dvh; /* Dynamic height for mobile browsers */
-    overflow: hidden; /* Prevent scrolling */
+    height: 100dvh;
+    overflow: hidden;
 }
 
 /* Header */
@@ -73,9 +82,9 @@ select, #btn-new-game {
 }
 .btn-primary { background-color: var(--primary); color: white; border: none; font-weight: bold; }
 
-/* Game Board Area - Hier passiert die Magie für Responsiveness */
+/* Game Board Area */
 #game-container {
-    flex: 1 1 auto; /* Nimmt den restlichen Platz ein */
+    flex: 1 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -86,14 +95,10 @@ select, #btn-new-game {
 
 #sudoku-board {
     display: grid;
-    /* Spaltenanzahl wird via JS gesetzt (--cols) */
     grid-template-columns: repeat(var(--cols, 9), 1fr);
     grid-template-rows: repeat(var(--cols, 9), 1fr);
-    
-    /* Smart Sizing: Max width OR Max height based on aspect ratio */
     width: min(95vw, 60vh); 
     aspect-ratio: 1;
-    
     background-color: var(--grid-line-thick);
     border: 2px solid var(--grid-line-thick);
     gap: 1px;
@@ -104,21 +109,19 @@ select, #btn-new-game {
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: clamp(1rem, 5vw, 1.8rem); /* Adaptive Fontgröße */
+    font-size: clamp(1rem, 5vw, 1.8rem);
     cursor: pointer;
     font-weight: 500;
+    transition: background-color 0.1s;
+    overflow: visible;
 }
 
-/* Borders logic handling via attributes/classes from JS is cleaner, 
-   but here is CSS logic for 9x9 and 6x6 */
-   
-/* 9x9 Standard Borders */
+/* Borders */
 #sudoku-board[data-size="9"] .cell:nth-child(3n) { border-right: 2px solid var(--grid-line-thick); }
 #sudoku-board[data-size="9"] .cell:nth-child(9n) { border-right: none; }
 #sudoku-board[data-size="9"] .cell:nth-child(n+19):nth-child(-n+27),
 #sudoku-board[data-size="9"] .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid var(--grid-line-thick); }
 
-/* 6x6 Mini Borders (2 rows high, 3 cols wide boxes) */
 #sudoku-board[data-size="6"] .cell:nth-child(3n) { border-right: 2px solid var(--grid-line-thick); }
 #sudoku-board[data-size="6"] .cell:nth-child(6n) { border-right: none; }
 #sudoku-board[data-size="6"] .cell:nth-child(n+13):nth-child(-n+18) { border-bottom: 2px solid var(--grid-line-thick); }
@@ -136,7 +139,7 @@ select, #btn-new-game {
     flex: 0 0 auto;
     padding: 10px;
     background-color: var(--board-bg);
-    padding-bottom: max(10px, env(safe-area-inset-bottom)); /* Für iPhone Home Bar */
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 
 .action-buttons {
@@ -154,9 +157,7 @@ select, #btn-new-game {
 #numpad-1-5 { grid-template-columns: repeat(5, 1fr); }
 #numpad-6-9 { grid-template-columns: repeat(4, 1fr); width: 80%; margin: 0 auto; }
 
-/* Wenn 6x6, dann verstecken wir die untere Reihe via JS/CSS */
 .numpad.hidden { display: none; }
-/* Wenn 6x6, machen wir die obere Reihe breiter */
 .numpad.full-width { grid-template-columns: repeat(6, 1fr) !important; }
 
 .btn-num {
@@ -179,3 +180,40 @@ select, #btn-new-game {
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
 .highscore-item { display: flex; justify-content: space-between; border-bottom: 1px solid var(--grid-line); padding: 8px 0; }
+
+/* Killer Sudoku Styles */
+.cage-sum {
+    position: absolute; top: 2px; left: 2px;
+    font-size: 0.6rem; line-height: 1;
+    color: var(--cage-text); font-weight: bold; pointer-events: none;
+}
+.cage-border-top { border-top: 1px dashed var(--cage-border); }
+.cage-border-bottom { border-bottom: 1px dashed var(--cage-border); }
+.cage-border-left { border-left: 1px dashed var(--cage-border); }
+.cage-border-right { border-right: 1px dashed var(--cage-border); }
+
+/* --- Micro-Rewards Animation (Force Specificity) --- */
+@keyframes flash-success {
+    0% {
+        transform: scale(1);
+    }
+    20% {
+        /* Grün zwingend erzwingen */
+        background-color: var(--success-transparent) !important;
+        font-size: calc(clamp(1rem, 5vw, 1.8rem) * 1.5);
+        color: var(--text-color) !important;
+    }
+    100% {
+        background-color: var(--success-transparent) !important;
+        font-size: clamp(1rem, 5vw, 1.8rem);
+    }
+}
+
+.success-pulse {
+    animation: flash-success 1.5s ease-out forwards !important;
+    z-index: 10;
+    border-radius: 4px;
+    /* Damit es sofort grün ist, auch bevor Animation startet */
+    background-color: var(--success-transparent) !important;
+    color: var(--text-color) !important;
+}
