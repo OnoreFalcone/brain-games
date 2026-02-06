@@ -30,22 +30,28 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
 }
 
 header {
-    padding: 10px 15px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    padding: 0 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: var(--card-bg);
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    z-index: 10;
+    z-index: 1000;
 }
 
 .header-left { display: flex; align-items: center; gap: 10px; }
 h1 { margin: 0; font-size: 1.1rem; white-space: nowrap; }
-.back-btn { text-decoration: none; font-size: 1.4rem; color: var(--text-color); padding: 5px; }
+.back-btn { text-decoration: none; font-size: 1.4rem; color: var(--text-color); padding: 10px 5px; }
 
 .stats { display: flex; gap: 12px; align-items: center; }
 .stat-item { display: flex; align-items: center; gap: 4px; font-weight: bold; font-size: 1rem; }
@@ -56,11 +62,11 @@ main {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    padding: 20px 15px;
-    padding-top: 40px;
+    justify-content: center;
+    padding: 80px 15px 20px 15px; /* Top padding matches header height + breathing room */
     position: relative;
     overflow-y: auto;
+    width: 100%;
 }
 
 .scrambled-word {
