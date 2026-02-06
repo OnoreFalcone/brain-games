@@ -1,0 +1,192 @@
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --card-bg: #ffffff;
+    --primary: #0d6efd;
+    --secondary: #6c757d;
+    --success: #198754;
+    --danger: #dc3545;
+    --easy: #198754;
+    --medium: #fd7e14;
+    --hard: #dc3545;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+[data-theme="dark"] {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --card-bg: #1e1e1e;
+    --primary: #4dabf7;
+    --secondary: #adb5bd;
+}
+
+* { box-sizing: border-box; touch-action: manipulation; }
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+header {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-bg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.header-left { display: flex; align-items: center; gap: 15px; }
+h1 { margin: 0; font-size: 1.25rem; }
+.back-btn { text-decoration: none; font-size: 1.5rem; color: var(--text-color); }
+
+.stats { display: flex; gap: 15px; }
+.stat-item { display: flex; align-items: center; gap: 5px; font-weight: bold; font-size: 1.1rem; }
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    position: relative;
+}
+
+.scrambled-word {
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: 0.5rem;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--primary);
+}
+
+.correct-answer-display {
+    height: 1.5rem;
+    font-weight: bold;
+    color: var(--success);
+    margin-bottom: 25px;
+    font-size: 1.2rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.correct-answer-display.visible {
+    opacity: 1;
+}
+
+.input-container {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+#user-input.success {
+    border-color: var(--success) !important;
+    background-color: #e8f5e9;
+}
+
+.pop {
+    animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+.timer-pulse {
+    animation: pulse 0.5s infinite alternate;
+}
+
+@keyframes pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.2); }
+}
+
+#user-input {
+    padding: 15px;
+    font-size: 1.5rem;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    text-align: center;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#user-input:focus { border-color: var(--primary); }
+
+.controls {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform 0.1s, opacity 0.2s;
+    flex: 1;
+}
+
+.btn:active { transform: scale(0.98); }
+.btn-primary { background-color: var(--primary); color: white; }
+.btn-secondary { background-color: var(--secondary); color: white; }
+.btn-easy { background-color: var(--easy); color: white; margin-bottom: 10px; }
+.btn-medium { background-color: var(--medium); color: white; margin-bottom: 10px; }
+.btn-hard { background-color: var(--hard); color: white; }
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.overlay-content {
+    background: var(--card-bg);
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+}
+
+.level-buttons { display: flex; flex-direction: column; margin-top: 20px; }
+
+.hidden { display: none !important; }
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+.shake { animation: shake 0.3s ease-in-out; border-color: var(--danger) !important; }
+
+@media (max-width: 480px) {
+    .scrambled-word { font-size: 2rem; }
+    #user-input { font-size: 1.25rem; }
+}
